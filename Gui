@@ -1,0 +1,20 @@
+-- Full-screen black GUI (Roblox LocalScript)
+
+-- Create ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "BlackOverlay"
+screenGui.IgnoreGuiInset = true
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+
+-- Create full-screen black Frame
+local blackFrame = Instance.new("Frame")
+blackFrame.Name = "BlackFrame"
+blackFrame.BackgroundColor3 = Color3.new(0, 0, 0) -- pure black
+blackFrame.BackgroundTransparency = 0
+blackFrame.BorderSizePixel = 0
+blackFrame.Size = UDim2.fromScale(1, 1)
+blackFrame.Position = UDim2.fromScale(0, 0)
+blackFrame.ZIndex = 10
+blackFrame.Parent = screenGui
