@@ -1,4 +1,5 @@
--- Full-screen black GUI (Roblox LocalScript)
+-- Full-screen black GUI with a white button that lists all players
+local Players = game:GetService("Players")
 
 -- Create ScreenGui
 local screenGui = Instance.new("ScreenGui")
@@ -6,15 +7,52 @@ screenGui.Name = "BlackOverlay"
 screenGui.IgnoreGuiInset = true
 screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-screenGui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+screenGui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 
 -- Create full-screen black Frame
 local blackFrame = Instance.new("Frame")
 blackFrame.Name = "BlackFrame"
-blackFrame.BackgroundColor3 = Color3.new(0, 0, 0) -- pure black
+blackFrame.BackgroundColor3 = Color3.new(0, 0, 0)
 blackFrame.BackgroundTransparency = 0
 blackFrame.BorderSizePixel = 0
 blackFrame.Size = UDim2.fromScale(1, 1)
 blackFrame.Position = UDim2.fromScale(0, 0)
 blackFrame.ZIndex = 10
 blackFrame.Parent = screenGui
+
+-- Create a white button
+local button = Instance.new("TextButton")
+button.Name = "ListPlayersButton"
+button.Size = UDim2.new(0, 200, 0, 50) -- width 200px, height 50px
+button.Position = UDim2.new(0.5, -100, 0.5, -25) -- centered
+button.BackgroundColor3 = Color3.new(1, 1, 1) -- white
+button.TextColor3 = Color3.new(0, 0, 0) -- black text
+button.Font = Enum.Font.SourceSansBold
+button.TextSize = 20
+button.Text = "List Players"
+button.Parent = blackFrame
+
+-- Create a text label to show players
+local playerListLabel = Instance.new("TextLabel")
+playerListLabel.Name = "PlayerList"
+playerListLabel.Size = UDim2.new(0.6, 0, 0.3, 0)
+playerListLabel.Position = UDim2.new(0.2, 0, 0.65, 0)
+playerListLabel.BackgroundTransparency = 1
+playerListLabel.TextColor3 = Color3.new(1, 1, 1) -- white text
+playerListLabel.Font = Enum.Font.SourceSans
+playerListLabel.TextSize = 18
+playerListLabel.Text = ""
+playerListLabel.TextWrapped = true
+playerListLabel.Parent = blackFrame
+
+-- Function to list players
+local function listPlayers()
+    local names = {}
+    for _, plr in ipairs(Players:GetPlayers()) do
+        table.insert(names, plr.Name)
+    end
+    playerListLabel.Text = "Players:\n" .. table.concat(names, "\n")
+end
+
+-- Connect button click
+button.MouseButton1Click:Connect(listPlayers)
