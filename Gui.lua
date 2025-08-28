@@ -1,99 +1,118 @@
-local Players = game:GetService("Players")
+-- gui.lua
+local Gui = {}
 
--- Create ScreenGui
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "BlackOverlay"
-screenGui.IgnoreGuiInset = true
-screenGui.ResetOnSpawn = false
-screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-screenGui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+Gui.State = "PlayerList"   -- "PlayerList", "Editor", "Menu", "Logs"
+Gui.SelectedPlayer = nil
+Gui.Logs = {}
 
--- Full black background
-local blackFrame = Instance.new("Frame")
-blackFrame.Size = UDim2.fromScale(1, 1)
-blackFrame.BackgroundColor3 = Color3.new(0, 0, 0)
-blackFrame.BorderSizePixel = 0
-blackFrame.Parent = screenGui
+-- log helper
+function Gui:AddLog(msg)
+    table.insert(self.Logs, os.date("[%H:%M:%S] ") .. msg)
+end
 
--- White button to list players
-local listButton = Instance.new("TextButton")
-listButton.Size = UDim2.new(0, 200, 0, 50)
-listButton.Position = UDim2.new(0.5, -100, 0.05, 0)
-listButton.BackgroundColor3 = Color3.new(1, 1, 1)
-listButton.TextColor3 = Color3.new(0, 0, 0)
-listButton.Text = "List Players"
-listButton.Parent = blackFrame
+-- draw gui
+function Gui:Draw()
+    print("\n=== GUI ===")
+    print("[☰] Hamburger Menu (type: menu)")
 
--- ScrollingFrame for player list
-local playerListFrame = Instance.new("ScrollingFrame")
-playerListFrame.Size = UDim2.new(0.4, 0, 0.6, 0)
-playerListFrame.Position = UDim2.new(0.05, 0, 0.15, 0)
-playerListFrame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
-playerListFrame.BorderSizePixel = 0
-playerListFrame.CanvasSize = UDim2.new(0,0,0,0)
-playerListFrame.Parent = blackFrame
+    if self.State == "PlayerList" then
+        print("=== Players in this Experience ===")
+        for i, plr in ipairs(Players:GetPlayers()) do
+            print(i .. ". " .. plr.Name .. " | Robux: " .. plr.Data.Robux)
+        end
+        print("Select a player number to edit")
+    elseif self.State == "Editor" and self.SelectedPlayer then
+        local plr = self.SelectedPlayer
+        print("=== Editing " .. plr.Name .. " ===")
+        print("Robux: " .. plr.Data.Robux)
+        print("Accessories: " .. table.concat(plr.Data.Accessories, ", "))
+        print("[Back] to player list")
+        print("Commands: Robux <number>, AddAccessory <name>, RemoveAccessory <name>")
+    elseif self.State == "Menu" then
+        print("=== Hamburger Menu ===")
+        print("1. View Logs")
+        print("2. Back")
+    elseif self.State == "Logs" then
+        print("=== Action Logs ===")
+        for _, msg in ipairs(self.Logs) do
+            print(msg)
+        end
+        print("[Back] to menu")
+    end
+end
 
--- Info box
-local infoLabel = Instance.new("TextLabel")
-infoLabel.Size = UDim2.new(0.4, 0, 0.6, 0)
-infoLabel.Position = UDim2.new(0.55, 0, 0.15, 0)
-infoLabel.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
-infoLabel.TextColor3 = Color3.new(1, 1, 1)
-infoLabel.TextWrapped = true
-infoLabel.TextYAlignment = Enum.TextYAlignment.Top
-infoLabel.Text = "Select a player..."
-infoLabel.Parent = blackFrame
+-- handle input
+function Gui:HandleInput(input)
+    if input == "menu" then
+        self.State = "Menu"
+        return
+    end
 
--- Function to display player info
-local function showPlayerInfo(plr)
-    local info = {}
-    table.insert(info, "Name: " .. plr.Name)
-    table.insert(info, "DisplayName: " .. plr.DisplayName)
-    table.insert(info, "UserId: " .. plr.UserId)
-
-    -- Accessories (if character loaded)
-    if plr.Character then
-        local accs = {}
-        for _, acc in ipairs(plr.Character:GetChildren()) do
-            if acc:IsA("Accessory") then
-                table.insert(accs, acc.Name)
+    if self.State == "PlayerList" then
+        local idx = tonumber(input)
+        local list = Players:GetPlayers()
+        if idx and list[idx] then
+            self.SelectedPlayer = list[idx]
+            self.State = "Editor"
+        end
+    elseif self.State == "Editor" then
+        if input == "Back" then
+            self.State = "PlayerList"
+            self.SelectedPlayer = nil
+        else
+            local parts = {}
+            for word in string.gmatch(input, "[^ ]+") do
+                table.insert(parts, word)
+            end
+            local cmd, value = parts[1], parts[2]
+            if cmd == "Robux" then
+                self:EditPlayer(self.SelectedPlayer, "Robux", value)
+            elseif cmd == "AddAccessory" then
+                self:EditPlayer(self.SelectedPlayer, "AddAccessory", value)
+            elseif cmd == "RemoveAccessory" then
+                self:EditPlayer(self.SelectedPlayer, "RemoveAccessory", value)
             end
         end
-        if #accs > 0 then
-            table.insert(info, "Accessories: " .. table.concat(accs, ", "))
-        else
-            table.insert(info, "Accessories: None")
+    elseif self.State == "Menu" then
+        if input == "1" then
+            self.State = "Logs"
+        elseif input == "2" then
+            self.State = "PlayerList"
+        end
+    elseif self.State == "Logs" then
+        if input == "Back" then
+            self.State = "Menu"
+        end
+    end
+end
+
+-- edit player data
+function Gui:EditPlayer(plr, field, newValue)
+    if field == "Robux" then
+        plr.Data.Robux = tonumber(newValue) or plr.Data.Robux
+        self:AddLog(plr.Name .. " Robux set to " .. plr.Data.Robux)
+    elseif field == "AddAccessory" then
+        table.insert(plr.Data.Accessories, newValue)
+        self:AddLog(plr.Name .. " gained accessory: " .. newValue)
+    elseif field == "RemoveAccessory" then
+        for i, acc in ipairs(plr.Data.Accessories) do
+            if acc == newValue then
+                table.remove(plr.Data.Accessories, i)
+                self:AddLog(plr.Name .. " lost accessory: " .. newValue)
+                break
+            end
         end
     end
 
-    infoLabel.Text = table.concat(info, "\n")
-end
-
--- Function to list players
-local function refreshPlayerList()
-    playerListFrame:ClearAllChildren()
-    local y = 0
-    for _, plr in ipairs(Players:GetPlayers()) do
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(1, -10, 0, 30)
-        btn.Position = UDim2.new(0, 5, 0, y)
-        btn.BackgroundColor3 = Color3.new(1, 1, 1)
-        btn.TextColor3 = Color3.new(0, 0, 0)
-        btn.Text = plr.Name
-        btn.Parent = playerListFrame
-
-        btn.MouseButton1Click:Connect(function()
-            showPlayerInfo(plr)
-        end)
-
-        y = y + 35
+    -- update avatar in-game
+    if Players.UpdateAvatar then
+        Players:UpdateAvatar(plr)
     end
-    playerListFrame.CanvasSize = UDim2.new(0, 0, 0, y)
+
+    -- save persistently
+    if Players.Save then
+        Players:Save()
+    end
 end
 
--- Refresh when button clicked
-listButton.MouseButton1Click:Connect(refreshPlayerList)
-
--- Auto update when players join/leave
-Players.PlayerAdded:Connect(refreshPlayerList)
-Players.PlayerRemoving:Connect(refreshPlayerList)
+return Gui
