@@ -1,12 +1,12 @@
--- // LocalScript (PlayerGui or StarterPlayerScripts) //
-
+-- LocalScript: Full Admin GUI with Player Data Panel + Python console
+--:hi alasondro and avery
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
 local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 
--- Create RemoteEvents if missing
+-- RemoteEvents
 local function makeRemote(name)
     local remote = ReplicatedStorage:FindFirstChild(name)
     if not remote then
@@ -19,7 +19,6 @@ end
 
 local EditPlayerData = makeRemote("EditPlayerData")
 local ToggleGui = makeRemote("ToggleGui")
-local ServerLog = makeRemote("ServerLog")
 
 -- Create Server Script if missing
 if not ServerScriptService:FindFirstChild("PlayerDataHandler") then
@@ -31,8 +30,6 @@ if not ServerScriptService:FindFirstChild("PlayerDataHandler") then
         local DataStoreService = game:GetService("DataStoreService")
         local PlayerStore = DataStoreService:GetDataStore("PlayerStore")
         local EditPlayerData = ReplicatedStorage:WaitForChild("EditPlayerData")
-        local ToggleGui = ReplicatedStorage:WaitForChild("ToggleGui")
-        local ServerLog = ReplicatedStorage:WaitForChild("ServerLog")
         local PlayerData = {}
 
         local function LoadData(player)
@@ -79,6 +76,8 @@ if not ServerScriptService:FindFirstChild("PlayerDataHandler") then
             local tdata = target and PlayerData[targetId]
             local adata = PlayerData[admin.UserId]
 
+            if not tdata then return end
+
             if action=="edit" then
                 if field=="Robux" or field=="Health" then
                     tdata[field]=value
@@ -104,7 +103,7 @@ if not ServerScriptService:FindFirstChild("PlayerDataHandler") then
     serverScript.Parent = ServerScriptService
 end
 
--- === GUI Setup ===
+-- GUI Setup
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "AdminGui"
 ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
@@ -147,7 +146,7 @@ LogBox.TextColor3=Color3.new(1,1,1)
 LogBox.Text="Logs:\n"
 LogBox.Parent=LogFrame
 
--- Python console panel
+-- Python console
 local PythonPanel = Instance.new("Frame")
 PythonPanel.Size=UDim2.new(0.4,0,0.4,0)
 PythonPanel.Position=UDim2.new(0.55,0,0.55,0)
@@ -177,10 +176,10 @@ PythonOutput.Parent=PythonPanel
 PythonInput.FocusLost:Connect(function(enter)
     if enter then
         local code = PythonInput.Text
-        local response
         local timestamp = os.date("%X")
         local url = "https://run-python-online.com/api/run"
         local body = HttpService:JSONEncode({code=code})
+        local response
         local success, result = pcall(function()
             return HttpService:PostAsync(url,body,Enum.HttpContentType.ApplicationJson)
         end)
@@ -195,13 +194,83 @@ PythonInput.FocusLost:Connect(function(enter)
     end
 end)
 
--- Player selection & editing
-local SelectedTarget = nil
+-- Player Data Panel
+local DataPanel = Instance.new("Frame")
+DataPanel.Size=UDim2.new(0.4,0,0.6,0)
+DataPanel.Position=UDim2.new(0.55,0,0.1,0)
+DataPanel.BackgroundColor3=Color3.fromRGB(35,35,35)
+DataPanel.Visible=false
+DataPanel.Parent=Frame
+
 local function AddLog(msg)
-    local timestamp = os.date("%X")
+    local timestamp=os.date("%X")
     LogBox.Text=LogBox.Text.."\n["..timestamp.."] "..msg
 end
 
+local SelectedTarget = nil
+
+local function createDataFields(target)
+    DataPanel:ClearAllChildren()
+
+    local title = Instance.new("TextLabel")
+    title.Size=UDim2.new(1,0,0,30)
+    title.Text="Editing "..target.Name
+    title.TextColor3=Color3.new(1,1,1)
+    title.BackgroundTransparency=1
+    title.Parent=DataPanel
+
+    -- Robux
+    local robuxBox = Instance.new("TextBox")
+    robuxBox.Size=UDim2.new(0.5,0,0,30)
+    robuxBox.Position=UDim2.new(0,0,0,40)
+    robuxBox.Text=target:FindFirstChild("leaderstats").Robux.Value
+    robuxBox.PlaceholderText="Robux"
+    robuxBox.TextColor3=Color3.new(1,1,1)
+    robuxBox.Parent=DataPanel
+
+    -- Health
+    local healthBox = Instance.new("TextBox")
+    healthBox.Size=UDim2.new(0.5,0,0,30)
+    healthBox.Position=UDim2.new(0,0,0,80)
+    healthBox.Text=target:FindFirstChild("leaderstats").Health.Value
+    healthBox.PlaceholderText="Health"
+    healthBox.TextColor3=Color3.new(1,1,1)
+    healthBox.Parent=DataPanel
+
+    -- Buttons
+    local applyBtn = Instance.new("TextButton")
+    applyBtn.Size=UDim2.new(0.4,0,0,30)
+    applyBtn.Position=UDim2.new(0,0,0,120)
+    applyBtn.Text="Apply Changes"
+    applyBtn.Parent=DataPanel
+    applyBtn.MouseButton1Click:Connect(function()
+        EditPlayerData:FireServer(target.UserId,"edit","Robux",tonumber(robuxBox.Text) or 0)
+        EditPlayerData:FireServer(target.UserId,"edit","Health",tonumber(healthBox.Text) or 100)
+        AddLog("Applied changes to "..target.Name)
+    end)
+
+    local copyBtn = Instance.new("TextButton")
+    copyBtn.Size=UDim2.new(0.4,0,0,30)
+    copyBtn.Position=UDim2.new(0,0,0,160)
+    copyBtn.Text="Copy Data"
+    copyBtn.Parent=DataPanel
+    copyBtn.MouseButton1Click:Connect(function()
+        EditPlayerData:FireServer(LocalPlayer.UserId,"copy","",target.UserId)
+        AddLog("Copied "..target.Name.."'s data to self")
+    end)
+
+    local wipeBtn = Instance.new("TextButton")
+    wipeBtn.Size=UDim2.new(0.4,0,0,30)
+    wipeBtn.Position=UDim2.new(0,0,0,200)
+    wipeBtn.Text="Wipe Data"
+    wipeBtn.Parent=DataPanel
+    wipeBtn.MouseButton1Click:Connect(function()
+        EditPlayerData:FireServer(target.UserId,"wipe","",0)
+        AddLog("Wiped "..target.Name.."'s data")
+    end)
+end
+
+-- Refresh player buttons
 local function RefreshPlayers()
     for _,c in ipairs(PlayerList:GetChildren()) do
         if c:IsA("TextButton") then c:Destroy() end
@@ -213,6 +282,8 @@ local function RefreshPlayers()
         btn.Parent=PlayerList
         btn.MouseButton1Click:Connect(function()
             SelectedTarget=plr
+            DataPanel.Visible=true
+            createDataFields(plr)
             AddLog("Selected "..plr.Name.." for editing")
         end)
     end
@@ -226,5 +297,4 @@ RefreshPlayers()
 Hamburger.MouseButton1Click:Connect(function()
     LogFrame.Visible = not LogFrame.Visible
     PythonPanel.Visible = LogFrame.Visible
-    ToggleGui:FireServer(LocalPlayer,LogFrame.Visible)
 end)
