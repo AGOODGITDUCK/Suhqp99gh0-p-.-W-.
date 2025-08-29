@@ -178,7 +178,7 @@ PythonInput.FocusLost:Connect(function(enter)
     if enter then
         local code = PythonInput.Text
         local response
-        -- Call the online python runner
+        local timestamp = os.date("%X")
         local url = "https://run-python-online.com/api/run"
         local body = HttpService:JSONEncode({code=code})
         local success, result = pcall(function()
@@ -190,7 +190,7 @@ PythonInput.FocusLost:Connect(function(enter)
         else
             response = "Failed to reach Python API"
         end
-        PythonOutput.Text = PythonOutput.Text.."\n"..tostring(response)
+        PythonOutput.Text = PythonOutput.Text.."\n["..timestamp.."] "..tostring(response)
         PythonInput.Text=""
     end
 end)
@@ -198,7 +198,8 @@ end)
 -- Player selection & editing
 local SelectedTarget = nil
 local function AddLog(msg)
-    LogBox.Text=LogBox.Text.."\n"..msg
+    local timestamp = os.date("%X")
+    LogBox.Text=LogBox.Text.."\n["..timestamp.."] "..msg
 end
 
 local function RefreshPlayers()
