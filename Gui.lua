@@ -1,5 +1,4 @@
--- LocalScript: Full Admin GUI with Player Data Panel + Python console
---:hi alasondro and avery
+-- LocalScript: Full Admin GUI with Player Data Panel + Python console     Hi avery     and alasondro avery do not get any funny ideas
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerScriptService = game:GetService("ServerScriptService")
