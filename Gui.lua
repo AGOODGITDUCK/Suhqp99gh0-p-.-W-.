@@ -1,10 +1,11 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local LocalPlayer = Players.LocalPlayer
+local DataStoreService = game:GetService("DataStoreService")
 local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
 
 -- ------------------------
--- Create RemoteEvents
+-- RemoteEvents
 -- ------------------------
 local function ensureFolder(name)
     local f = ReplicatedStorage:FindFirstChild(name)
@@ -29,7 +30,24 @@ local function ensureRemote(folder, name)
 end
 
 local EditEvent = ensureRemote(adminFolder, "EditPlayerData")
-local CreateScriptEvent = ensureRemote(adminFolder, "CreateScript")
+
+-- ------------------------
+-- DataStore setup
+-- ------------------------
+local playerStore = DataStoreService:GetDataStore("PlayerData")
+
+local function savePlayerData(plr, data)
+    pcall(function()
+        playerStore:SetAsync("Player_"..plr.UserId, data)
+    end)
+end
+
+local function loadPlayerData(plr)
+    local success, data = pcall(function()
+        return playerStore:GetAsync("Player_"..plr.UserId)
+    end)
+    return success and data or {Robux=0, Health=100, Accessories={}}
+end
 
 -- ------------------------
 -- GUI Setup
@@ -39,42 +57,40 @@ screenGui.Name = "AdminGui"
 screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local window = Instance.new("Frame")
-window.Size = UDim2.new(0, 400, 0, 300)
+window.Size = UDim2.new(0, 450, 0, 350)
 window.Position = UDim2.new(0.3,0,0.3,0)
 window.BackgroundColor3 = Color3.fromRGB(30,30,30)
 window.Parent = screenGui
 window.Active = true
 
--- Make draggable
-do
-    local dragging = false
-    local dragStart, startPos
-    local function drag(input)
-        if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local delta = input.Position - dragStart
-            window.Position = UDim2.new(
-                startPos.X.Scale,
-                startPos.X.Offset + delta.X,
-                startPos.Y.Scale,
-                startPos.Y.Offset + delta.Y
-            )
-        end
+-- Dragging
+local dragging = false
+local dragStart, startPos
+local function drag(input)
+    if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - dragStart
+        window.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
     end
-
-    window.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = window.Position
-        end
-    end)
-    window.InputEnded:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = false
-        end
-    end)
-    UserInputService.InputChanged:Connect(drag)
 end
+
+window.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = window.Position
+    end
+end)
+window.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = false
+    end
+end)
+UserInputService.InputChanged:Connect(drag)
 
 -- Title bar
 local titleBar = Instance.new("Frame")
@@ -129,7 +145,6 @@ playerList.Parent = window
 local layout = Instance.new("UIListLayout")
 layout.Parent = playerList
 
--- Player selection
 local selectedPlayer
 local function refreshPlayers()
     playerList:ClearAllChildren()
@@ -140,6 +155,9 @@ local function refreshPlayers()
         btn.Parent = playerList
         btn.MouseButton1Click:Connect(function()
             selectedPlayer = plr
+            -- load their data
+            local data = loadPlayerData(plr)
+            print("Loaded "..plr.Name.."'s data: Robux="..data.Robux.." Health="..data.Health)
         end)
     end
 end
@@ -147,14 +165,18 @@ Players.PlayerAdded:Connect(refreshPlayers)
 Players.PlayerRemoving:Connect(refreshPlayers)
 refreshPlayers()
 
--- Example action buttons
+-- Example edit buttons
 local robuxBtn = Instance.new("TextButton")
-robuxBtn.Text = "Add 100 Robux"
+robuxBtn.Text = "Give 100 Robux"
 robuxBtn.Size = UDim2.new(0.45,0,0.08,0)
 robuxBtn.Position = UDim2.new(0.5,0,0.1,0)
 robuxBtn.Parent = window
 robuxBtn.MouseButton1Click:Connect(function()
     if selectedPlayer then
-        EditEvent:FireServer(selectedPlayer.UserId, {Robux=100}, "edit")
+        local data = loadPlayerData(selectedPlayer)
+        data.Robux = data.Robux + 100
+        savePlayerData(selectedPlayer, data)
+        print("Added 100 Robux to "..selectedPlayer.Name)
+        EditEvent:FireServer(selectedPlayer.UserId, {Robux=data.Robux}, "edit")
     end
 end)
