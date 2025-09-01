@@ -1,11 +1,5 @@
---[[ 
-Place this in StarterPlayerScripts (or StarterPlayerGui).
-It will create:
- - GUI
- - RemoteEvents in ReplicatedStorage
- - ServerScript in ServerScriptService
- - Full data editing system
-]]--
+-- Place this ONE LocalScript in StarterPlayerScripts
+-- It will create GUI + RemoteEvents + ServerScript + Log + Script Creator
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -20,13 +14,15 @@ if not folder then
 	folder.Parent = ReplicatedStorage
 end
 
-local editEvent = folder:FindFirstChild("EditPlayerData")
-if not editEvent then
-	editEvent = Instance.new("RemoteEvent")
-	editEvent.Name = "EditPlayerData"
-	editEvent.Parent = folder
-end
+local editEvent = folder:FindFirstChild("EditPlayerData") or Instance.new("RemoteEvent")
+editEvent.Name = "EditPlayerData"
+editEvent.Parent = folder
 
+local scriptCreateEvent = folder:FindFirstChild("CreateScript") or Instance.new("RemoteEvent")
+scriptCreateEvent.Name = "CreateScript"
+scriptCreateEvent.Parent = folder
+
+-- Auto-create the server handler if missing
 local ensureScript = ServerScriptService:FindFirstChild("AdminDataHandler")
 if not ensureScript then
 	local src = Instance.new("Script")
@@ -37,6 +33,7 @@ if not ensureScript then
 		local PlayerDataStore = DataStoreService:GetDataStore("PlayerDataV1")
 		local Events = game.ReplicatedStorage:WaitForChild("AdminEvents")
 		local EditEvent = Events:WaitForChild("EditPlayerData")
+		local ScriptEvent = Events:WaitForChild("CreateScript")
 
 		local function loadData(player)
 			local data = {Robux=0, Health=100, Accessories={}}
@@ -70,12 +67,9 @@ if not ensureScript then
 		Players.PlayerRemoving:Connect(saveData)
 
 		EditEvent.OnServerEvent:Connect(function(admin, targetUserId, newData, action)
-			-- Replace YOUR userId here!
-			if admin.UserId ~= 123456789 then return end
-
+			if admin.UserId ~= 123456789 then return end -- CHANGE to your UserId
 			local target = Players:GetPlayerByUserId(targetUserId)
 			if not target then return end
-
 			if action == "edit" then
 				if newData.Robux then target:SetAttribute("Robux", tonumber(newData.Robux)) end
 				if newData.Health then target:SetAttribute("Health", tonumber(newData.Health)) end
@@ -90,6 +84,14 @@ if not ensureScript then
 				target:SetAttribute("Accessories", "BaconHair")
 			end
 		end)
+
+		ScriptEvent.OnServerEvent:Connect(function(admin, scriptName, code)
+			if admin.UserId ~= 123456789 then return end -- CHANGE to your UserId
+			local s = Instance.new("Script")
+			s.Name = scriptName ~= "" and scriptName or "NewScript"
+			s.Source = code
+			s.Parent = game.ServerScriptService
+		end)
 	]]
 	src.Parent = ServerScriptService
 end
@@ -103,12 +105,69 @@ Frame.Size = UDim2.new(0.3,0,0.6,0)
 Frame.Position = UDim2.new(0.35,0,0.2,0)
 Frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
 
+-- X Button
+local XBtn = Instance.new("TextButton", Frame)
+XBtn.Size = UDim2.new(0.1,0,0.1,0)
+XBtn.Position = UDim2.new(0.9,0,0,0)
+XBtn.Text = "X"
+XBtn.BackgroundColor3 = Color3.fromRGB(150,50,50)
+XBtn.MouseButton1Click:Connect(function()
+	Frame.Visible = false
+end)
+
 local Title = Instance.new("TextLabel", Frame)
-Title.Size = UDim2.new(1,0,0.1,0)
+Title.Size = UDim2.new(0.8,0,0.1,0)
 Title.Text = "Admin Data Panel"
 Title.BackgroundColor3 = Color3.fromRGB(40,40,40)
 Title.TextColor3 = Color3.new(1,1,1)
 
+-- Hamburger button
+local MenuBtn = Instance.new("TextButton", Frame)
+MenuBtn.Size = UDim2.new(0.1,0,0.1,0)
+MenuBtn.Position = UDim2.new(0.8,0,0,0)
+MenuBtn.Text = "☰"
+
+-- Menu panel
+local MenuFrame = Instance.new("Frame", Frame)
+MenuFrame.Size = UDim2.new(1,0,0.5,0)
+MenuFrame.Position = UDim2.new(0,0,1,0)
+MenuFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+MenuFrame.Visible = false
+
+MenuBtn.MouseButton1Click:Connect(function()
+	MenuFrame.Visible = not MenuFrame.Visible
+end)
+
+-- Tabs: Logs + Script Creator
+local LogsLabel = Instance.new("TextLabel", MenuFrame)
+LogsLabel.Size = UDim2.new(1,0,0.1,0)
+LogsLabel.Text = "Change Logs"
+LogsLabel.BackgroundColor3 = Color3.fromRGB(50,50,50)
+LogsLabel.TextColor3 = Color3.new(1,1,1)
+
+local LogsBox = Instance.new("ScrollingFrame", MenuFrame)
+LogsBox.Size = UDim2.new(1,0,0.4,0)
+LogsBox.Position = UDim2.new(0,0,0.1,0)
+LogsBox.CanvasSize = UDim2.new(0,0,0,0)
+
+local ScriptLabel = Instance.new("TextLabel", MenuFrame)
+ScriptLabel.Size = UDim2.new(1,0,0.1,0)
+ScriptLabel.Position = UDim2.new(0,0,0.5,0)
+ScriptLabel.Text = "Create Script"
+ScriptLabel.BackgroundColor3 = Color3.fromRGB(50,50,50)
+ScriptLabel.TextColor3 = Color3.new(1,1,1)
+
+local ScriptBox = Instance.new("TextBox", MenuFrame)
+ScriptBox.Size = UDim2.new(1,0,0.3,0)
+ScriptBox.Position = UDim2.new(0,0,0.6,0)
+ScriptBox.Text = "-- write script here"
+
+local SubmitBtn = Instance.new("TextButton", MenuFrame)
+SubmitBtn.Size = UDim2.new(1,0,0.1,0)
+SubmitBtn.Position = UDim2.new(0,0,0.9,0)
+SubmitBtn.Text = "Submit Script"
+
+-- === Main Controls (Players + Edits) ===
 local PlayerList = Instance.new("ScrollingFrame", Frame)
 PlayerList.Size = UDim2.new(1,0,0.4,0)
 PlayerList.Position = UDim2.new(0,0,0.1,0)
@@ -146,6 +205,15 @@ BaconBtn.Position = UDim2.new(0.67,0,0.8,0)
 
 -- === Logic ===
 local selectedPlayer = nil
+local function logChange(msg)
+	local lbl = Instance.new("TextLabel", LogsBox)
+	lbl.Size = UDim2.new(1,0,0,20)
+	lbl.Text = msg
+	lbl.TextColor3 = Color3.new(1,1,1)
+	lbl.BackgroundTransparency = 1
+	LogsBox.CanvasSize = UDim2.new(0,0,0,#LogsBox:GetChildren()*20)
+end
+
 local function refreshPlayers()
 	PlayerList:ClearAllChildren()
 	local y = 0
@@ -176,17 +244,25 @@ SaveBtn.MouseButton1Click:Connect(function()
 			Health = HealthBox.Text,
 			Accessories = AccBox.Text
 		}, "edit")
+		logChange("Edited "..selectedPlayer.Name.." | R:"..RobuxBox.Text.." H:"..HealthBox.Text.." A:"..AccBox.Text)
 	end
 end)
 
 WipeBtn.MouseButton1Click:Connect(function()
 	if selectedPlayer then
 		editEvent:FireServer(selectedPlayer.UserId, {}, "wipe")
+		logChange("Wiped "..selectedPlayer.Name)
 	end
 end)
 
 BaconBtn.MouseButton1Click:Connect(function()
 	if selectedPlayer then
 		editEvent:FireServer(selectedPlayer.UserId, {}, "bacon")
+		logChange("Baconized "..selectedPlayer.Name)
 	end
+end)
+
+SubmitBtn.MouseButton1Click:Connect(function()
+	scriptCreateEvent:FireServer("CustomScript", ScriptBox.Text)
+	logChange("Created script in ServerScriptService")
 end)
